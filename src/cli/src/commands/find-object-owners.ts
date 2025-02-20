@@ -29,7 +29,20 @@ export async function findObjectOwners({
                     address
                     owner {
                         ... on AddressOwner {
-                            owner { address }
+                            __typename
+                            owner {
+                                address
+                            }
+                        }
+                        ... on Shared {
+                            __typename
+                        }
+                        ... on Immutable {
+                            __typename
+                        }
+                        ... on Parent {
+                            __typename
+                            parent { address }
                         }
                     }
                 }
@@ -43,10 +56,11 @@ export async function findObjectOwners({
 
     let hasNextPage = true;
     let cursor: string | null = null;
-    const allResults: { id: string; owner: string }[] = [];
+    const allResults: { id: string; ownerType: string; owner: string | null }[] = [];
 
     while (hasNextPage && (limit === 0 || allResults.length < limit)) {
-        const result: any = await graphClient.query({
+        // @ts-expect-error
+        const { data, errors } = await graphClient.query({
             query: findObjectOwnersQuery,
             variables: {
                 first: RPC_QUERY_MAX_RESULT_LIMIT,
@@ -55,26 +69,43 @@ export async function findObjectOwners({
             }
         });
 
-        const objects = result.data?.objects.nodes;
-        const pageInfo = result.data?.objects.pageInfo;
-
-        if (!objects || objects.length === 0) {
-            break;
+        if (errors) {
+            throw new Error(JSON.stringify(errors, null, 2));
         }
 
+        const objects = data?.objects.nodes;
+        if (!objects?.length) break;
+
         for (const obj of objects) {
-            if (limit !== 0 && allResults.length >= limit) {
+            if (limit !== 0 && allResults.length >= limit)
                 break;
-            }
+
             allResults.push({
                 id: obj.address,
-                owner: obj.owner?.owner?.address || "no owner"
+                ownerType: obj.owner?.__typename || "unknown",
+                owner: getOwnerAddress(obj.owner)
             });
         }
 
-        hasNextPage = pageInfo?.hasNextPage ?? false;
-        cursor = pageInfo?.endCursor ?? null;
+        hasNextPage = data?.objects.pageInfo.hasNextPage ?? false;
+        cursor = data?.objects.pageInfo.endCursor ?? null;
     }
 
     console.log(JSON.stringify(allResults));
+}
+
+function getOwnerAddress(owner: any): string | null {
+    if (!owner) return null;
+
+    switch (owner.__typename) {
+        case "AddressOwner":
+            return owner.owner?.address || null;
+        case "Parent":
+            return owner.parent?.address || null;
+        case "Shared":
+        case "Immutable":
+            return null;
+        default:
+            return null;
+    }
 }

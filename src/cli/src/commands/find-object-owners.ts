@@ -1,6 +1,9 @@
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { graphql } from "@mysten/sui/graphql/schemas/latest";
+
 import { RPC_QUERY_MAX_RESULT_LIMIT } from "@polymedia/suitcase-core";
+
+import { debug } from "../logger.js";
 
 type Result = {
     id: string;
@@ -22,12 +25,14 @@ export async function findObjectOwners({
         url: rpc,
     });
 
+    let queryNum = 1;
     let hasNextPage = true;
     let cursor: string | null | undefined = null;
     const results: Result[] = [];
 
     while (hasNextPage && (limit === 0 || results.length < limit))
     {
+        debug(`query ${queryNum++}, cursor: ${cursor}`);
         const resp = await queryObjectOwners(graphClient, type, cursor);
 
         if (resp.errors) {

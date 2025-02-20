@@ -20,6 +20,7 @@ import { findLastTx } from "./commands/find-last-tx.js";
 import { findNftHolders } from "./commands/find-nft-holders.js";
 import { findNftVerified } from "./commands/find-nft-verified.js";
 import { findNfts } from "./commands/find-nfts.js";
+import { findObjectOwners } from "./commands/find-object-owners.js";
 import { msgSign } from "./commands/msg-sign.js";
 import { msgVerify } from "./commands/msg-verify.js";
 import { randAddr } from "./commands/rand-addr.js";
@@ -226,6 +227,20 @@ program
     .description("Find all NFT collections that are verified on TradePort")
     .action(async (_opts) => {
         await findNftVerified();
+    });
+
+program
+    .command("find-object-owners")
+    .description("Find objects of a specific type and their owners")
+    .requiredOption("-t, --type <type>", "The object type to search for. E.g. \"0x123::module::Struct\".")
+    .option("-r, --rpc <url>", "The RPC endpoint to use", "https://sui-mainnet.mystenlabs.com/graphql")
+    .option("-l, --limit <number>", "Maximum number of objects to fetch. Use 0 for no limit.", "0")
+    .action(async (opts) => {
+        await findObjectOwners({
+            type: opts.type,
+            rpc: opts.rpc,
+            limit: parseInt(opts.limit),
+        });
     });
 
 program

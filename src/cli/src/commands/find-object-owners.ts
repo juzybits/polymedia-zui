@@ -31,6 +31,9 @@ export async function findObjectOwners({
         const resp = await queryObjectOwners(graphClient, type, cursor);
 
         if (resp.errors) {
+            if (resp.errors[0]?.message === "Requested data is outside the available range") {
+                break;
+            }
             throw new Error(JSON.stringify(resp.errors, null, 2));
         }
         if (!resp.data) {

@@ -49,7 +49,14 @@ export async function findObjectOwners({
             results.push({
                 id: obj.address,
                 ownerType: obj.owner?.__typename || "unknown",
-                owner: getOwnerAddress(obj.owner)
+                owner: ((owner) => {
+                    if (!owner) return null;
+                    if (owner.__typename === "AddressOwner")
+                        return owner.owner?.address || null;
+                    if (owner.__typename === "Parent")
+                        return owner.parent?.address || null;
+                    return null;
+                })(obj.owner)
             });
         }
 
@@ -79,9 +86,7 @@ async function queryObjectOwners(
                     owner {
                         ... on AddressOwner {
                             __typename
-                            owner {
-                                address
-                            }
+                            owner { address }
                         }
                         ... on Shared {
                             __typename
@@ -92,6 +97,9 @@ async function queryObjectOwners(
                         ... on Parent {
                             __typename
                             parent { address }
+                        }
+                        ... on ConsensusV2 {
+                            __typename
                         }
                     }
                 }
@@ -111,20 +119,4 @@ async function queryObjectOwners(
             after: cursor,
         }
     });
-}
-
-function getOwnerAddress(owner: any): string | null {
-    if (!owner) return null;
-
-    switch (owner.__typename) {
-        case "AddressOwner":
-            return owner.owner?.address || null;
-        case "Parent":
-            return owner.parent?.address || null;
-        case "Shared":
-        case "Immutable":
-            return null;
-        default:
-            return null;
-    }
 }

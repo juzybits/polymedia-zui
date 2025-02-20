@@ -42,7 +42,8 @@ export async function findObjectOwners({
 
         const objects = resp.data.objects.nodes;
 
-        for (const obj of objects) {
+        for (const obj of objects)
+        {
             if (limit !== 0 && results.length >= limit)
                 break;
 
@@ -84,22 +85,12 @@ async function queryObjectOwners(
                 nodes {
                     address
                     owner {
+                        __typename
                         ... on AddressOwner {
-                            __typename
                             owner { address }
                         }
-                        ... on Shared {
-                            __typename
-                        }
-                        ... on Immutable {
-                            __typename
-                        }
                         ... on Parent {
-                            __typename
                             parent { address }
-                        }
-                        ... on ConsensusV2 {
-                            __typename
                         }
                     }
                 }

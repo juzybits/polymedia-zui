@@ -2,6 +2,12 @@ import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { graphql } from "@mysten/sui/graphql/schemas/latest";
 import { RPC_QUERY_MAX_RESULT_LIMIT } from "@polymedia/suitcase-core";
 
+type Result = {
+    id: string;
+    ownerType: string;
+    owner: string | null;
+};
+
 export async function findObjectOwners({
     type,
     rpc,
@@ -16,7 +22,47 @@ export async function findObjectOwners({
         url: rpc,
     });
 
-    const findObjectOwnersQuery = graphql(`
+    let hasNextPage = true;
+    let cursor: string | null | undefined = null;
+    const results: Result[] = [];
+
+    while (hasNextPage && (limit === 0 || results.length < limit))
+    {
+        const resp = await queryObjectOwners(graphClient, type, cursor);
+
+        if (resp.errors) {
+            throw new Error(JSON.stringify(resp.errors, null, 2));
+        }
+        if (!resp.data) {
+            throw new Error("Query returned no data");
+        }
+
+        const objects = resp.data.objects.nodes;
+
+        for (const obj of objects) {
+            if (limit !== 0 && results.length >= limit)
+                break;
+
+            results.push({
+                id: obj.address,
+                ownerType: obj.owner?.__typename || "unknown",
+                owner: getOwnerAddress(obj.owner)
+            });
+        }
+
+        hasNextPage = resp.data.objects.pageInfo.hasNextPage;
+        cursor = resp.data.objects.pageInfo.endCursor;
+    }
+
+    console.log(JSON.stringify(results));
+}
+
+async function queryObjectOwners(
+    graphClient: SuiGraphQLClient,
+    type: string,
+    cursor: string | null | undefined,
+) {
+    const query = graphql(`
         query FindObjectOwners($first: Int!, $type: String!, $after: String) {
             objects(
                 first: $first
@@ -54,44 +100,14 @@ export async function findObjectOwners({
         }
     `);
 
-    let hasNextPage = true;
-    let cursor: string | null = null;
-    const allResults: { id: string; ownerType: string; owner: string | null }[] = [];
-
-    while (hasNextPage && (limit === 0 || allResults.length < limit)) {
-        // @ts-expect-error
-        const { data, errors } = await graphClient.query({
-            query: findObjectOwnersQuery,
-            variables: {
-                first: RPC_QUERY_MAX_RESULT_LIMIT,
-                type,
-                after: cursor,
-            }
-        });
-
-        if (errors) {
-            throw new Error(JSON.stringify(errors, null, 2));
+    return await graphClient.query({
+        query: query,
+        variables: {
+        first: RPC_QUERY_MAX_RESULT_LIMIT,
+        type,
+            after: cursor,
         }
-
-        const objects = data?.objects.nodes;
-        if (!objects?.length) break;
-
-        for (const obj of objects) {
-            if (limit !== 0 && allResults.length >= limit)
-                break;
-
-            allResults.push({
-                id: obj.address,
-                ownerType: obj.owner?.__typename || "unknown",
-                owner: getOwnerAddress(obj.owner)
-            });
-        }
-
-        hasNextPage = data?.objects.pageInfo.hasNextPage ?? false;
-        cursor = data?.objects.pageInfo.endCursor ?? null;
-    }
-
-    console.log(JSON.stringify(allResults));
+    });
 }
 
 function getOwnerAddress(owner: any): string | null {

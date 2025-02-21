@@ -22,11 +22,12 @@ import { findNftVerified } from "./commands/find-nft-verified.js";
 import { findNfts } from "./commands/find-nfts.js";
 import { msgSign } from "./commands/msg-sign.js";
 import { msgVerify } from "./commands/msg-verify.js";
+import { PackagePublisher } from "./commands/publish-packages.js";
 import { randAddr } from "./commands/rand-addr.js";
 import "./types.js";
 
 // @ts-expect-error Property 'toJSON' does not exist on type 'BigInt'
-BigInt.prototype.toJSON = function() { return this.toString(); };
+BigInt.prototype.toJSON = function () { return this.toString(); };
 
 dotenv.config();
 
@@ -275,6 +276,17 @@ Example:
     });
 
 program
+    .command("publish")
+    .description("Publish all packages in the current or specified directory then update Move.toml and Move.lock files accordingly, optionally save the created objects' data")
+    .option("-p, --path <path>", "The path to the directory containing the packages")
+    .option("-d, --created-objects-dir <path>", "The directory where to save the created objects' types and IDs")
+    .action(async (opts) => {
+        const packageManager = new PackagePublisher();
+        packageManager.loadPackages(opts.path ?? process.cwd());
+        await packageManager.publishAll(opts.createdObjectsDir);
+    });
+
+program
     .command("rand-addr")
     .description("Generate pseudorandom Sui addresses")
     .requiredOption("-n, --number <number>", "The amount of addresses to generate")
@@ -288,8 +300,7 @@ program
 
 program.parse(process.argv);
 
-function getVersion(): string
-{
+function getVersion(): string {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
 

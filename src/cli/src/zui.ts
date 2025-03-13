@@ -292,7 +292,7 @@ Example:
 
 program
     .command("publish")
-    .description("Publish all packages in the current or specified directory then update Move.toml and Move.lock files accordingly, optionally save the created objects' data")
+    .description("Publish all packages in a directory")
     .option("-p, --path <path>", "The path to the directory containing the packages")
     .option("-d, --created-objects-dir <path>", "The directory where to save the created objects' types and IDs")
     .action(async (opts) => {

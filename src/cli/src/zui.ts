@@ -124,7 +124,7 @@ program
 
 program
     .command("clock-time")
-    .description("Get the current timestamp in milliseconds")
+    .description("Get the current onchain timestamp in milliseconds")
     .option("-f, --format <type>", "output format: 'ts' (default), 'iso' (UTC), or 'local'")
     .action(async (opts) => {
         await clockTime({
